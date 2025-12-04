@@ -99,9 +99,9 @@ fn show_preview_window(app: &AppHandle) -> Result<(), String> {
     .always_on_top(true)
     .resizable(false)
     .skip_taskbar(true)
-    .transparent(true)
     .build()
     .map_err(|e| e.to_string())?;
+
 
     Ok(())
 }
@@ -130,6 +130,11 @@ pub fn run() {
             current_screenshot: Mutex::new(None),
         })
         .setup(|app| {
+            // Set macOS activation policy to accessory (menu bar app, no dock)
+            #[cfg(target_os = "macos")]
+            {
+                app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+            }
             // Create tray menu
             let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let show_item = MenuItem::with_id(app, "show", "Show Editor", true, None::<&str>)?;
@@ -143,7 +148,7 @@ pub fn run() {
                     app.default_window_icon().unwrap().clone()
                 }))
                 .menu(&menu)
-                .show_menu_on_left_click(false)
+                .show_menu_on_left_click(true)
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "quit" => {
                         app.exit(0);
@@ -160,17 +165,21 @@ pub fn run() {
                     _ => {}
                 })
                 .on_tray_icon_event(|tray, event| {
-                    if let TrayIconEvent::Click {
-                        button: MouseButton::Left,
-                        button_state: MouseButtonState::Up,
-                        ..
-                    } = event
-                    {
-                        let app = tray.app_handle();
-                        if let Some(window) = app.get_webview_window("main") {
-                            let _ = window.show();
-                            let _ = window.set_focus();
+                    use tauri::tray::TrayIconEvent;
+                    use tauri::tray::{MouseButton, MouseButtonState};
+                    match event {
+                        TrayIconEvent::Click {
+                            button: MouseButton::Left,
+                            button_state: MouseButtonState::Up,
+                            ..
+                        } => {
+                            let app = tray.app_handle();
+                            if let Some(window) = app.get_webview_window("main") {
+                                let _ = window.show();
+                                let _ = window.set_focus();
+                            }
                         }
+                        _ => {}
                     }
                 })
                 .build(app)?;

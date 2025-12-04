@@ -1,0 +1,64 @@
+name: Build macOS App
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        target: [x86_64-apple-darwin, aarch64-apple-darwin]
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build frontend
+        run: pnpm run build
+
+      - name: Build Tauri app
+        run: pnpm run tauri build -- --target ${{ matrix.target }}
+
+      - name: Create DMG
+        if: matrix.target == 'x86_64-apple-darwin'
+        run: |
+          cd src-tauri/target/release/bundle/dmg
+          ls -la
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: Screenshot-Maker-${{ matrix.target }}
+          path: src-tauri/target/release/bundle/
+          retention-days: 30
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: src-tauri/target/release/bundle/dmg/*.dmg
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
