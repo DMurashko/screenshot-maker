@@ -5,8 +5,7 @@ use std::io::Cursor;
 use std::sync::Mutex;
 use tauri::{
     image::Image,
-    menu::{Menu, MenuItem},
-    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+    tray::{ TrayIconBuilder},
     AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder,
 };
 
@@ -135,35 +134,13 @@ pub fn run() {
             {
                 app.set_activation_policy(tauri::ActivationPolicy::Accessory);
             }
-            // Create tray menu
-            let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let show_item = MenuItem::with_id(app, "show", "Show Editor", true, None::<&str>)?;
-            let screenshot_item =
-                MenuItem::with_id(app, "screenshot", "Take Screenshot", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&screenshot_item, &show_item, &quit_item])?;
 
             // Build tray icon
             let _tray = TrayIconBuilder::with_id("main-tray")
                 .icon(Image::from_path("icons/32x32.png").unwrap_or_else(|_| {
                     app.default_window_icon().unwrap().clone()
                 }))
-                .menu(&menu)
                 .show_menu_on_left_click(true)
-                .on_menu_event(|app, event| match event.id.as_ref() {
-                    "quit" => {
-                        app.exit(0);
-                    }
-                    "show" => {
-                        if let Some(window) = app.get_webview_window("main") {
-                            let _ = window.show();
-                            let _ = window.set_focus();
-                        }
-                    }
-                    "screenshot" => {
-                        trigger_screenshot(app);
-                    }
-                    _ => {}
-                })
                 .on_tray_icon_event(|tray, event| {
                     use tauri::tray::TrayIconEvent;
                     use tauri::tray::{MouseButton, MouseButtonState};
