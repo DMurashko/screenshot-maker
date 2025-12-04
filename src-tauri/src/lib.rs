@@ -1,3 +1,5 @@
+#![allow(unused_must_use)]
+
 use base64::{engine::general_purpose::STANDARD, Engine};
 use screenshots::image::ImageFormat;
 use screenshots::Screen;
@@ -152,8 +154,12 @@ pub fn run() {
                         } => {
                             let app = tray.app_handle();
                             if let Some(window) = app.get_webview_window("main") {
-                                let _ = window.show();
-                                let _ = window.set_focus();
+                                if window.is_visible().unwrap_or(false) {
+                                    window.hide();
+                                } else {
+                                    window.show();
+                                    window.set_focus();
+                                }
                             }
                         }
                         _ => {}
